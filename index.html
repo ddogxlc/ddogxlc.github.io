@@ -64,6 +64,101 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-C-lock2" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2020/10/25/C-lock2/" class="article-date">
+  <time datetime="2020-10-25T14:04:56.000Z" itemprop="datePublished">2020-10-25</time>
+</a>
+    
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/10/25/C-lock2/">C++ lock</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="C-锁类型汇总-二"><a href="#C-锁类型汇总-二" class="headerlink" title="C++ 锁类型汇总(二)"></a>C++ 锁类型汇总(二)</h2><h3 id="RAII式锁管理器"><a href="#RAII式锁管理器" class="headerlink" title="RAII式锁管理器"></a>RAII式锁管理器</h3><p>RAII（Resource Acquisition Is Initialization），即资源获取即初始化，<br>我们在使用mutex的时候，需要进行3步，1.mutex的初始化；2.调用lock获取锁；3.调用unlock释放锁。<br>而RAII式锁管理器不需要2、3的手工操作，锁的lock、unlock、资源的释放由系统统一管理。<br>C++标准库提供如下锁管理器：lock_guard(C++11)、scope_guard(C++17)、unique_lock(C++11)、shared_lock(C++14)。</p>
+<h3 id="lock-guard"><a href="#lock-guard" class="headerlink" title="lock_guard"></a>lock_guard</h3><p>lock_guard是mutex的RAII包装体，为最基础的锁管理器，创建lock_guard对象时自动上锁，在退出作用域后自动解锁。<br>lock_guard不可复制，不可移动。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">std::mutex mutex;</span><br><span class="line">void func()</span><br><span class="line">&#123;</span><br><span class="line">    std::lock_guard&lt;std::mutex&gt; lock(mutex);</span><br><span class="line">    //<span class="keyword">do</span> something;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>锁在lock创建时自动上锁，在退出func作用域后自动解锁，无需额外的手工操作。</p>
+<h3 id="unique-lock"><a href="#unique-lock" class="headerlink" title="unique_lock"></a>unique_lock</h3><p>unique_lock是C++11引入的独占式锁的管理器，是个类模板，比lock_guard更灵活，支持mutex、time_mutex、recursive_mutex等。可以延迟锁定、可移动，不可拷贝，具体定义：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">template&lt;class Mutex&gt;</span><br><span class="line">class unique_lock;</span><br></pre></td></tr></table></figure>
+<p>lock_guard没有提供额外的lock/unlock接口，只能在作用域结束自动解锁。unique_lock提供了主动的锁定解锁接口。因为要维护内部锁的状态，所以效率要比lock_guard低一点。unique_lock提供了lock、try_lock、try_lock_for、try_lock_until锁定接口以及解锁接口unlock。</p>
+<table>
+<thead>
+<tr>
+<th align="left">函数</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">lock</td>
+<td align="left">锁定函数</td>
+</tr>
+<tr>
+<td align="left">try_lock</td>
+<td align="left">尝试锁定，失败立即返回</td>
+</tr>
+<tr>
+<td align="left">try_lock_for</td>
+<td align="left">可传入参数要阻塞的时长，阻塞直至指定的时长或获得锁后返回，成功true，失败false</td>
+</tr>
+<tr>
+<td align="left">try_lock_until</td>
+<td align="left">传入参数阻塞的时间点，阻塞直至指定的时间点或获得锁后返回，成功true，失败false</td>
+</tr>
+<tr>
+<td align="left">unlock</td>
+<td align="left">解除锁定</td>
+</tr>
+</tbody></table>
+<p>此外unique_lock还提供了swap、release修改锁状态的方法，以及owns_lock等获取锁状态的方法。</p>
+<table>
+<thead>
+<tr>
+<th align="left">函数</th>
+<th align="left">描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">swap</td>
+<td align="left">与另一个锁交换状态</td>
+</tr>
+<tr>
+<td align="left">release</td>
+<td align="left">打断现有所有权，不解锁，由调用方拥有新的所有权</td>
+</tr>
+<tr>
+<td align="left">owns_lock</td>
+<td align="left">测试是否占有锁的所有权，此外重载的opterator bool 起同样作用</td>
+</tr>
+</tbody></table>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">class A &#123;</span><br><span class="line">  mutex m;</span><br><span class="line">  // something</span><br><span class="line">  void process()</span><br><span class="line">  &#123;</span><br><span class="line">    unique_lock&lt;mutex&gt; guard(m) // 初始化即上锁</span><br><span class="line">    // <span class="keyword">do</span> something</span><br><span class="line">    guard.unlock(); // 解锁</span><br><span class="line">    // <span class="keyword">do</span> something;</span><br><span class="line">    guard.lock(); // 上锁</span><br><span class="line">    // 退出作用域析构自动解锁</span><br><span class="line">  &#125;</span><br><span class="line">  // 延迟锁定</span><br><span class="line">  void processWithDefer()</span><br><span class="line">  &#123;</span><br><span class="line">    unique_lock&lt;mutex&gt; guard(m, defer_lock) // 初始化不锁定</span><br><span class="line">    guard.lock();  //第一次上锁</span><br><span class="line">    // <span class="keyword">do</span> something</span><br><span class="line">    // 析构解锁</span><br><span class="line">  &#125;</span><br><span class="line">  // movable</span><br><span class="line">  void porcessMove()</span><br><span class="line">  &#123;</span><br><span class="line">    unique_lock&lt;mutex&gt; guard1(m);</span><br><span class="line">    unique_lock&lt;mutex&gt; guard2 = move(guard1);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://example.com/2020/10/25/C-lock2/" data-id="ckkavczy00000asvd780w5z7n" class="article-share-link">Share</a>
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/C/" rel="tag">C++</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+  
     <article id="post-C-lock" class="article article-type-post" itemscope itemprop="blogPost">
   <div class="article-meta">
     <a href="/2020/10/14/C-lock/" class="article-date">
@@ -155,6 +250,10 @@
       <ul>
         
           <li>
+            <a href="/2020/10/25/C-lock2/">C++ lock</a>
+          </li>
+        
+          <li>
             <a href="/2020/10/14/C-lock/">C++ lock</a>
           </li>
         
@@ -170,7 +269,7 @@
   
   <div class="outer">
     <div id="footer-info" class="inner">
-      &copy; 2020 xlc<br>
+      &copy; 2021 xlc<br>
       Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>
     </div>
   </div>
